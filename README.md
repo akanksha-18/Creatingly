@@ -213,7 +213,7 @@ No build step. No install. Just open the file.
 
 ```bash
 # clone or download the project
-git clone https://github.com/your-username/html-tag-analyzer.git
+git clone https://github.com/akanksha-18/Creatingly.git
 cd html-tag-analyzer
 
 # open in browser (any method works)
