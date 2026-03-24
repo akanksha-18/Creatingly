@@ -1,4 +1,3 @@
-// ─── CONFIG ───────────────────────────────────────────────
 const ROW_H  = 44;
 const BUFFER = 5;
 
@@ -7,14 +6,12 @@ const PROXIES = [
   url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
 ];
 
-// ─── STATE ────────────────────────────────────────────────
 let allRows = [];
 let shown   = [];
 let rowsEl  = null;
 let spacer  = null;
 let rafId   = 0;
 
-// ─── ELEMENTS ─────────────────────────────────────────────
 const viewport    = document.getElementById('viewport');
 const urlInput    = document.getElementById('urlInput');
 const fetchBtn    = document.getElementById('fetchBtn');
@@ -22,14 +19,14 @@ const searchInput = document.getElementById('searchInput');
 const resultCount = document.getElementById('resultCount');
 const countVal    = document.getElementById('countVal');
 
-// ─── EXPOSE TO HTML ───────────────────────────────────────
+
 const App = { fetch: fetchURL, filter: filterRows };
 
-// ─── URL INPUT EVENTS ─────────────────────────────────────
+
 urlInput.addEventListener('input',   () => urlInput.value.trim() === '' && resetAll());
 urlInput.addEventListener('keydown', e => e.key === 'Enter' && fetchURL());
 
-// ─── RESET ────────────────────────────────────────────────
+
 function resetAll() {
   allRows = shown = [];
   ['valUnique','valTotal','valTop'].forEach(id => document.getElementById(id).textContent = '—');
@@ -44,12 +41,11 @@ function resetAll() {
     </div>`;
 }
 
-// ─── FETCH ────────────────────────────────────────────────
+
 async function fetchURL() {
   let url = urlInput.value.trim();
   if (!url) { resetAll(); return; }
 
-  // Strip old proxy wrappers if user pasted one
   const match = url.match(/[?&]url=([^&]+)/);
   if (match) url = decodeURIComponent(match[1]);
 
@@ -72,7 +68,7 @@ async function fetchURL() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       html = await res.text();
       if (!html || html.trim().length < 10) throw new Error('Empty response');
-      break; // success
+      break;
     } catch {
       html = null;
       if (i < PROXIES.length - 1) await new Promise(r => setTimeout(r, 500));
@@ -86,7 +82,7 @@ async function fetchURL() {
     return;
   }
 
-  // Parse and render
+
   const freq = countTags(html);
   const rows = Object.entries(freq)
     .sort((a, b) => b[1] - a[1])
