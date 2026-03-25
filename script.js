@@ -3,7 +3,10 @@ const BUFFER = 5;
 
 const PROXIES = [
   url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+  url => `https://api.cors.lol/?url=${encodeURIComponent(url)}`,
+  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+  url => `https://thingproxy.freeboard.io/fetch/${url}`,
 ];
 
 let allRows = [];
@@ -19,13 +22,10 @@ const searchInput = document.getElementById('searchInput');
 const resultCount = document.getElementById('resultCount');
 const countVal    = document.getElementById('countVal');
 
-
 const App = { fetch: fetchURL, filter: filterRows };
-
 
 urlInput.addEventListener('input',   () => urlInput.value.trim() === '' && resetAll());
 urlInput.addEventListener('keydown', e => e.key === 'Enter' && fetchURL());
-
 
 function resetAll() {
   allRows = shown = [];
@@ -41,15 +41,14 @@ function resetAll() {
     </div>`;
 }
 
-
 async function fetchURL() {
   let url = urlInput.value.trim();
   if (!url) { resetAll(); return; }
 
+
   const match = url.match(/[?&]url=([^&]+)/);
   if (match) url = decodeURIComponent(match[1]);
 
-  // Add https:// if missing
   if (!url.startsWith('http')) url = 'https://' + url;
   urlInput.value = url;
 
@@ -59,29 +58,42 @@ async function fetchURL() {
   resultCount.style.display = 'none';
   destroyScroller();
 
-  // Try each proxy
   let html = null;
+  let lastError = '';
+
   for (let i = 0; i < PROXIES.length; i++) {
     showStatus('⏳', `Trying proxy ${i + 1} of ${PROXIES.length}…`);
     try {
-      const res = await fetch(PROXIES[i](url), { signal: AbortSignal.timeout(10000) });
+      const proxyUrl = PROXIES[i](url);
+      const res = await fetch(proxyUrl, {
+        signal: AbortSignal.timeout(12000),
+        headers: { 'Accept': 'text/html,*/*' }
+      });
+
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      html = await res.text();
-      if (!html || html.trim().length < 10) throw new Error('Empty response');
+
+      const text = await res.text();
+
+     
+      if (!text || text.trim().length < 50) throw new Error('Empty response');
+      if (!/<html|<!doctype|<head|<body/i.test(text)) throw new Error('Response does not look like HTML');
+
+      html = text;
       break;
-    } catch {
-      html = null;
-      if (i < PROXIES.length - 1) await new Promise(r => setTimeout(r, 500));
+    } catch (err) {
+      lastError = err.message;
+      console.warn(`Proxy ${i + 1} failed:`, err.message);
+      if (i < PROXIES.length - 1) await new Promise(r => setTimeout(r, 600));
     }
   }
 
+  fetchBtn.disabled    = false;
+  fetchBtn.textContent = 'Analyze';
+
   if (!html) {
-    showError();
-    fetchBtn.disabled    = false;
-    fetchBtn.textContent = 'Analyze';
+    showError(`All ${PROXIES.length} proxies failed.<br><small style="opacity:.6">${lastError}</small>`);
     return;
   }
-
 
   const freq = countTags(html);
   const rows = Object.entries(freq)
@@ -97,9 +109,6 @@ async function fetchURL() {
   const total = rows.reduce((s, r) => s + r.count, 0);
   updateStats(rows.length, total, rows[0].tag);
   renderList();
-
-  fetchBtn.disabled    = false;
-  fetchBtn.textContent = 'Analyze';
 }
 
 // ─── COUNT TAGS ───────────────────────────────────────────
@@ -134,10 +143,14 @@ function renderList() {
   viewport.innerHTML = '';
 
   spacer = document.createElement('div');
-  Object.assign(spacer.style, { position:'absolute', top:0, left:0, width:'1px', pointerEvents:'none', height: allRows.length * ROW_H + 'px' });
+  Object.assign(spacer.style, {
+    position: 'absolute', top: 0, left: 0,
+    width: '1px', pointerEvents: 'none',
+    height: allRows.length * ROW_H + 'px'
+  });
 
   rowsEl = document.createElement('div');
-  Object.assign(rowsEl.style, { position:'absolute', top:0, left:0, width:'100%' });
+  Object.assign(rowsEl.style, { position: 'absolute', top: 0, left: 0, width: '100%' });
 
   viewport.append(spacer, rowsEl);
   viewport.addEventListener('scroll', onScroll, { passive: true });
